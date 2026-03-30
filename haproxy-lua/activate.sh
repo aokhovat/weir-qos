@@ -28,8 +28,16 @@ fi
 
 # Store the commit on which our local changes are based, so that we know which commits need to be
 # turned into patches when we later run the `deactivate` script.
-git -C  "$HAPROXY_SOURCE_DIR" checkout $WEIR_HAPROXY_BASE_COMMIT
-git -C  "$HAPROXY_SOURCE_DIR" show-ref -s $WEIR_HAPROXY_BASE_COMMIT > "$SCRIPT_DIR"/.haproxy-activated-commit
+# Ensure release tags are available even if git is configured to skip tags during clone.
+git -C "$HAPROXY_SOURCE_DIR" fetch --tags --force origin
+
+if ! git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "refs/tags/$WEIR_HAPROXY_BASE_COMMIT" > /dev/null; then
+    echo "Tag $WEIR_HAPROXY_BASE_COMMIT was not found in $HAPROXY_SOURCE_DIR"
+    exit 1
+fi
+
+git -C "$HAPROXY_SOURCE_DIR" checkout "$WEIR_HAPROXY_BASE_COMMIT"
+git -C "$HAPROXY_SOURCE_DIR" show-ref -s "refs/tags/$WEIR_HAPROXY_BASE_COMMIT" > "$SCRIPT_DIR"/.haproxy-activated-commit
 
 # Enable ** for directory expansion in globs, and allow zero matches to result in an empty list
 shopt -s globstar nullglob
