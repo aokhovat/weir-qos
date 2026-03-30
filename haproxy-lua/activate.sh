@@ -1,11 +1,16 @@
 #!/usr/bin/bash
 
 set -e
-WEIR_HAPROXY_BASE_VERSION=3.3
 WEIR_HAPROXY_BASE_COMMIT=v3.3.6
 # Use the major.minor series (for example, 3.3) for the upstream repo name.
-WEIR_HAPROXY_SERIES=${WEIR_HAPROXY_BASE_COMMIT#v}
-WEIR_HAPROXY_SERIES=${WEIR_HAPROXY_SERIES%.*}
+# Expect commit tags in form v<major>.<minor>.<patch> (for example, v3.3.6).
+if [[ "$WEIR_HAPROXY_BASE_COMMIT" =~ ^v([0-9]+\.[0-9]+)\.[0-9]+$ ]]; then
+    WEIR_HAPROXY_SERIES=${BASH_REMATCH[1]}
+else
+    echo "Invalid WEIR_HAPROXY_BASE_COMMIT: $WEIR_HAPROXY_BASE_COMMIT"
+    echo "Expected format: v<major>.<minor>.<patch> (for example, v3.3.6)"
+    exit 1
+fi
 SCRIPT_DIR=$(dirname "$0")
 HAPROXY_SOURCE_DIR=$SCRIPT_DIR/haproxy-source
 
