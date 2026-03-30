@@ -9,7 +9,7 @@ Subject: [PATCH] Initial commit of Weir QoS
  2 files changed, 31 insertions(+)
 
 diff --git a/Makefile b/Makefile
-index 90e791f39..e6be08e58 100644
+index 0997126a0..e1a556efc 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1003,6 +1003,7 @@ OBJS += src/mux_h2.o src/mux_h1.o src/mux_fcgi.o src/log.o		\
@@ -21,10 +21,10 @@ index 90e791f39..e6be08e58 100644
  ifneq ($(TRACE),)
    OBJS += src/calltrace.o
 diff --git a/src/hlua.c b/src/hlua.c
-index ec2a8ee7b..2332e29c3 100644
+index 21af7199b..bfbd08426 100644
 --- a/src/hlua.c
 +++ b/src/hlua.c
-@@ -14010,6 +14010,35 @@ static void *hlua_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
+@@ -14043,6 +14043,35 @@ static void *hlua_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
  	return ptr;
  }
  
@@ -60,7 +60,7 @@ index ec2a8ee7b..2332e29c3 100644
  /* This function can fail with an abort() due to a Lua critical error.
   * We are in the initialisation process of HAProxy, this abort() is
   * tolerated.
-@@ -14132,6 +14161,7 @@ lua_State *hlua_init_state(int thread_num)
+@@ -14169,6 +14198,7 @@ lua_State *hlua_init_state(int thread_num)
  	hlua_class_function(L, "Alert", hlua_log_alert);
  	hlua_class_function(L, "done", hlua_done);
  	hlua_class_function(L, "use_native_mailers_config", hlua_use_native_mailers_config);
@@ -69,5 +69,5 @@ index ec2a8ee7b..2332e29c3 100644
  
  	lua_setglobal(L, "core");
 -- 
-2.43.0
+2.44.4
 

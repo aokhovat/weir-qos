@@ -1,8 +1,11 @@
 #!/usr/bin/bash
 
 set -e
-
-WEIR_HAPROXY_BASE_COMMIT=v3.3.0
+WEIR_HAPROXY_BASE_VERSION=3.3
+WEIR_HAPROXY_BASE_COMMIT=v3.3.6
+# Use the major.minor series (for example, 3.3) for the upstream repo name.
+WEIR_HAPROXY_SERIES=${WEIR_HAPROXY_BASE_COMMIT#v}
+WEIR_HAPROXY_SERIES=${WEIR_HAPROXY_SERIES%.*}
 SCRIPT_DIR=$(dirname "$0")
 HAPROXY_SOURCE_DIR=$SCRIPT_DIR/haproxy-source
 
@@ -10,7 +13,7 @@ HAPROXY_SOURCE_DIR=$SCRIPT_DIR/haproxy-source
 if [[ -d "$HAPROXY_SOURCE_DIR" ]]; then
     echo "HAProxy directory already exists @ $HAPROXY_SOURCE_DIR, skipping clone step..."
 else
-    git clone "${WEIR_HAPROXY_REPO_URL:-https://github.com/haproxy/haproxy.git}" "$HAPROXY_SOURCE_DIR"
+    git clone "${WEIR_HAPROXY_REPO_URL:-https://git.haproxy.org/git/haproxy-$WEIR_HAPROXY_SERIES.git}" "$HAPROXY_SOURCE_DIR"
 fi
 
 if (! git -C  "$HAPROXY_SOURCE_DIR" diff --quiet) || (! git -C  "$HAPROXY_SOURCE_DIR" diff --staged --quiet); then
