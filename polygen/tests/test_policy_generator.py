@@ -4,7 +4,8 @@
 import logging
 import unittest
 from types import SimpleNamespace
-from typing import Any as AnyType, cast
+from typing import Any as AnyType
+from typing import cast
 from unittest.mock import ANY as ANY_VALUE
 from unittest.mock import Mock, patch
 
