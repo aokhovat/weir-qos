@@ -581,6 +581,5 @@ class TestPolicyGenerator(unittest.TestCase):
         self.assertEqual(policy_generator.submit_violation_check.call_count, 2)
 
 
-
 if __name__ == "__main__":
     unittest.main()

@@ -741,9 +741,7 @@ class PolicyGenerator:
 
 
 # we query violates from redis and send back policies to haproxies
-def check_loop(
-    policy_generator: PolicyGenerator, sleep_time_milliseconds: int
-) -> None:
+def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) -> None:
     avg_pol_gen_loop_run_time_list: list[float] = []
 
     @avg_time(
@@ -756,6 +754,7 @@ def check_loop(
     def check_loop_epoch() -> None:
         epoch_time = time.time()
         epoch_sec = int(epoch_time)
+
         def submit_keys_for_type(redis_key_type: str) -> None:
             cursor = 0
             keys_to_check: list[str] = []
