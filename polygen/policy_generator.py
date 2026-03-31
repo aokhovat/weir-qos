@@ -742,7 +742,7 @@ class PolicyGenerator:
 
 # we query violates from redis and send back policies to haproxies
 def check_loop(
-    policy_generator: PolicyGenerator, redis_key_type: str, sleep_time_milliseconds: int
+    policy_generator: PolicyGenerator, sleep_time_milliseconds: int
 ) -> None:
     avg_pol_gen_loop_run_time_list: list[float] = []
 
@@ -756,50 +756,59 @@ def check_loop(
     def check_loop_epoch() -> None:
         epoch_time = time.time()
         epoch_sec = int(epoch_time)
-        cursor = 0
-        if redis_key_type == REDIS_KEY_TYPE_VERB:
-            scan_pattern = f"verb_{epoch_sec}_*"
-        elif redis_key_type == REDIS_KEY_TYPE_CONN:
-            scan_pattern = "conn_*"
-        else:
-            raise ValueError(f"Invalid redis key type: {redis_key_type}")
-
-        all_keys_to_check = set()
-        while True:
-            try:
-                redis_scan_result = policy_generator.redis_server.scan(
-                    cursor, match=scan_pattern, count=policy_generator.redis_keys_batch
-                )
-                # Redis mandates that SCAN will return 2 elements: the length of the result and an array of results
-                assert isinstance(redis_scan_result, tuple)
-                assert len(redis_scan_result) == 2
-            except Exception as e:
-                policy_generator.logger.warning(
-                    f"Redis SCAN failed with exception: {e}"
-                )
-                policy_generator.logger.warning(
-                    f"Redis result for epoch {epoch_sec}: {redis_scan_result}"
-                )
-                # We need to find the cause of the underlying problem if this happens.
-                # We break here since the cursor in redis_scan_result might
-                # have been messed up here.
-                break
-
-            epoch_time = time.time()
-            if int(epoch_time) != epoch_sec:
-                policy_generator.logger.debug(
-                    f"Redis scan started at {epoch_time} spilled over the next second"
-                )
-                return
-
-            all_keys_to_check.update(redis_scan_result[1])
-            cursor = int(redis_scan_result[0])
-            if cursor == 0:
-                break
-        if len(all_keys_to_check) > 0:
-            policy_generator.submit_violation_check(
-                list(all_keys_to_check), redis_key_type, epoch_time
+        def submit_keys_for_type(redis_key_type: str) -> None:
+            cursor = 0
+            keys_to_check: list[str] = []
+            redis_scan_result: tuple[int | str, list[str]] = (0, [])
+            scan_pattern = (
+                f"verb_{epoch_sec}_*"
+                if redis_key_type == REDIS_KEY_TYPE_VERB
+                else "conn_*"
             )
+
+            while True:
+                try:
+                    redis_scan_result = policy_generator.redis_server.scan(
+                        cursor,
+                        match=scan_pattern,
+                        count=policy_generator.redis_keys_batch,
+                    )
+                    # Redis mandates that SCAN will return 2 elements: the cursor and an array of keys
+                    assert isinstance(redis_scan_result, tuple)
+                    assert len(redis_scan_result) == 2
+                except Exception as e:
+                    policy_generator.logger.warning(
+                        f"Redis SCAN failed with exception: {e}"
+                    )
+                    policy_generator.logger.warning(
+                        f"Redis result for pattern {scan_pattern} at epoch {epoch_sec}: {redis_scan_result}"
+                    )
+                    # We need to find the cause of the underlying problem if this happens.
+                    # We break here since the cursor in redis_scan_result might
+                    # have been messed up here.
+                    break
+
+                current_time = time.time()
+                if int(current_time) != epoch_sec:
+                    policy_generator.logger.debug(
+                        f"Redis scan started at {epoch_time} spilled over the next second"
+                    )
+                    return
+
+                keys_to_check += redis_scan_result[1]
+                cursor = int(redis_scan_result[0])
+                if cursor == 0:
+                    break
+
+            if len(keys_to_check) > 0:
+                policy_generator.submit_violation_check(
+                    keys_to_check,
+                    redis_key_type,
+                    current_time,
+                )
+
+        submit_keys_for_type(REDIS_KEY_TYPE_VERB)
+        submit_keys_for_type(REDIS_KEY_TYPE_CONN)
 
     while True:
         # check reload_limits
@@ -934,25 +943,14 @@ if __name__ == "__main__":
         logging.exception(f"Policy Generator initialization failed: {e}")
         raise
 
-    verb_thread = threading.Thread(
+    verb_conn_loop = threading.Thread(
         target=check_loop,
         args=(
             policy_generator,
-            REDIS_KEY_TYPE_VERB,
             policy_generator.sleep_time_milliseconds,
         ),
     )
-    verb_thread.start()
-
-    conn_thread = threading.Thread(
-        target=check_loop,
-        args=(
-            policy_generator,
-            REDIS_KEY_TYPE_CONN,
-            policy_generator.sleep_time_milliseconds,
-        ),
-    )
-    conn_thread.start()
+    verb_conn_loop.start()
 
     demand_thread = threading.Thread(
         target=demand_check_loop,
@@ -964,5 +962,4 @@ if __name__ == "__main__":
     demand_thread.start()
 
     demand_thread.join()
-    verb_thread.join()
-    conn_thread.join()
+    verb_conn_loop.join()

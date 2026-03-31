@@ -6,7 +6,8 @@ import unittest
 from typing import Any as AnyType
 from unittest.mock import ANY as ANY_VALUE
 from unittest.mock import Mock
-
+from unittest.mock import patch
+from types import SimpleNamespace
 from policy_generator import (
     DEFAULT_VERB_BDW_LIMIT_IF_QOS_IS_NOT_CONFIGURED,
     DEFAULT_VERB_RATE_LIMIT_IF_QOS_IS_NOT_CONFIGURED,
@@ -19,6 +20,9 @@ from policy_generator import (
     LimitConfig,
     Policies,
     PolicyGenerator,
+    REDIS_KEY_TYPE_CONN,
+    REDIS_KEY_TYPE_VERB,
+    check_loop,
 )
 from weir.models.user_metrics import UsageValue, UserLevelVerbUsage
 
@@ -538,6 +542,44 @@ class TestPolicyGenerator(unittest.TestCase):
 
         haproxies["endpoint1"][0].add_message.assert_called_once()  # type: ignore [attr-defined]
         haproxies["endpoint1"][1].add_message.assert_called_once()  # type: ignore [attr-defined]
+
+    def test__check_loop__submits_scanned_keys_to_matching_type(self) -> None:
+        policy_generator = SimpleNamespace(
+            zone="test-zone",
+            logger=logging.getLogger("TestPolicyGenerator"),
+            redis_keys_batch=100,
+            redis_server=Mock(),
+            should_reload_limits=False,
+            reload_limits=Mock(),
+            unknown_users=SimpleNamespace(report=Mock()),
+            submit_violation_check=Mock(),
+        )
+        verb_keys = ["verb_123_GET_key$ep"]
+        conn_keys = ["conn_v2_user_up_instance_key$ep"]
+        policy_generator.redis_server.scan.side_effect = [
+            (0, verb_keys),
+            (0, conn_keys),
+        ]
+
+        with (
+            patch("policy_generator.time.time", return_value=123.0),
+            patch("policy_generator.time.sleep", side_effect=RuntimeError("stop")),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "stop"):
+                check_loop(policy_generator, sleep_time_milliseconds=1)
+
+        policy_generator.submit_violation_check.assert_any_call(
+            verb_keys,
+            REDIS_KEY_TYPE_VERB,
+            123.0,
+        )
+        policy_generator.submit_violation_check.assert_any_call(
+            conn_keys,
+            REDIS_KEY_TYPE_CONN,
+            123.0,
+        )
+        self.assertEqual(policy_generator.submit_violation_check.call_count, 2)
+
 
 
 if __name__ == "__main__":
