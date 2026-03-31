@@ -4,7 +4,7 @@
 import logging
 import unittest
 from types import SimpleNamespace
-from typing import Any as AnyType
+from typing import Any as AnyType, cast
 from unittest.mock import ANY as ANY_VALUE
 from unittest.mock import Mock, patch
 
@@ -566,7 +566,10 @@ class TestPolicyGenerator(unittest.TestCase):
             patch("policy_generator.time.sleep", side_effect=RuntimeError("stop")),
         ):
             with self.assertRaisesRegex(RuntimeError, "stop"):
-                check_loop(policy_generator, sleep_time_milliseconds=1)
+                check_loop(
+                    cast(PolicyGenerator, policy_generator),
+                    sleep_time_milliseconds=1,
+                )
 
         policy_generator.submit_violation_check.assert_any_call(
             verb_keys,

@@ -21,7 +21,7 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha1
-from typing import Any, Iterable, NamedTuple
+from typing import Any, Iterable, NamedTuple, cast
 
 import redis
 import yaml
@@ -767,11 +767,12 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
 
             while True:
                 try:
-                    redis_scan_result = policy_generator.redis_server.scan(
+                    scan_result = policy_generator.redis_server.scan(
                         cursor,
                         match=scan_pattern,
                         count=policy_generator.redis_keys_batch,
                     )
+                    redis_scan_result = cast(tuple[int | str, list[str]], scan_result)
                     # Redis mandates that SCAN will return 2 elements: the cursor and an array of keys
                     assert isinstance(redis_scan_result, tuple)
                     assert len(redis_scan_result) == 2
