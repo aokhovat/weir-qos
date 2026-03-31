@@ -3,15 +3,17 @@
 
 import logging
 import unittest
+from types import SimpleNamespace
 from typing import Any as AnyType
 from unittest.mock import ANY as ANY_VALUE
-from unittest.mock import Mock
-from unittest.mock import patch
-from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
 from policy_generator import (
     DEFAULT_VERB_BDW_LIMIT_IF_QOS_IS_NOT_CONFIGURED,
     DEFAULT_VERB_RATE_LIMIT_IF_QOS_IS_NOT_CONFIGURED,
     MB,
+    REDIS_KEY_TYPE_CONN,
+    REDIS_KEY_TYPE_VERB,
     VERB_LIMITING_BANDWIDTH_CATEGORY_PATTERN,
     DemandKey,
     DemandMap,
@@ -20,8 +22,6 @@ from policy_generator import (
     LimitConfig,
     Policies,
     PolicyGenerator,
-    REDIS_KEY_TYPE_CONN,
-    REDIS_KEY_TYPE_VERB,
     check_loop,
 )
 from weir.models.user_metrics import UsageValue, UserLevelVerbUsage
