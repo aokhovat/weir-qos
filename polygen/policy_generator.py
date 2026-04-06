@@ -21,7 +21,7 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha1
-from typing import Any, Iterable, NamedTuple, cast
+from typing import Any, Iterable, NamedTuple
 
 import redis
 import yaml
@@ -754,61 +754,58 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
     def check_loop_epoch() -> None:
         epoch_time = time.time()
         epoch_sec = int(epoch_time)
-
-        def submit_keys_for_type(redis_key_type: str) -> None:
-            cursor = 0
-            keys_to_check: list[str] = []
-            redis_scan_result: tuple[int | str, list[str]] = (0, [])
-            scan_pattern = (
-                f"verb_{epoch_sec}_*"
-                if redis_key_type == REDIS_KEY_TYPE_VERB
-                else "conn_*"
-            )
-
-            while True:
-                try:
-                    scan_result = policy_generator.redis_server.scan(
-                        cursor,
-                        match=scan_pattern,
-                        count=policy_generator.redis_keys_batch,
-                    )
-                    redis_scan_result = cast(tuple[int | str, list[str]], scan_result)
-                    # Redis mandates that SCAN will return 2 elements: the cursor and an array of keys
-                    assert isinstance(redis_scan_result, tuple)
-                    assert len(redis_scan_result) == 2
-                except Exception as e:
-                    policy_generator.logger.warning(
-                        f"Redis SCAN failed with exception: {e}"
-                    )
-                    policy_generator.logger.warning(
-                        f"Redis result for pattern {scan_pattern} at epoch {epoch_sec}: {redis_scan_result}"
-                    )
-                    # We need to find the cause of the underlying problem if this happens.
-                    # We break here since the cursor in redis_scan_result might
-                    # have been messed up here.
-                    break
-
-                current_time = time.time()
-                if int(current_time) != epoch_sec:
-                    policy_generator.logger.debug(
-                        f"Redis scan started at {epoch_time} spilled over the next second"
-                    )
-                    return
-
-                keys_to_check += redis_scan_result[1]
-                cursor = int(redis_scan_result[0])
-                if cursor == 0:
-                    break
-
-            if len(keys_to_check) > 0:
-                policy_generator.submit_violation_check(
-                    keys_to_check,
-                    redis_key_type,
-                    current_time,
+        started_epoch_time = epoch_time
+        cursor = 0
+        scan_pattern = "*"
+        all_verb_keys_to_check = set()
+        all_conn_keys_to_check = set()
+        while True:
+            redis_scan_result: tuple[int, list[str]] | None = None
+            try:
+                redis_scan_result = policy_generator.redis_server.scan(
+                    cursor, match=scan_pattern, count=policy_generator.redis_keys_batch
                 )
+                # Redis mandates that SCAN will return 2 elements: the length of the result and an array of results
+                assert isinstance(redis_scan_result, tuple)
+                assert len(redis_scan_result) == 2
+            except Exception as e:
+                policy_generator.logger.warning(
+                    f"Redis SCAN failed with exception: {e}"
+                )
+                if redis_scan_result is not None:
+                    policy_generator.logger.warning(
+                        f"Redis result for epoch {epoch_sec}: {redis_scan_result}"
+                    )
+                # We need to find the cause of the underlying problem if this happens.
+                # We break here since the cursor in redis_scan_result might
+                # have been messed up here.
+                break
 
-        submit_keys_for_type(REDIS_KEY_TYPE_VERB)
-        submit_keys_for_type(REDIS_KEY_TYPE_CONN)
+            epoch_time = time.time()
+            if int(epoch_time) != epoch_sec:
+                policy_generator.logger.debug(
+                    f"Redis scan started at {started_epoch_time} spilled over the next second"
+                )
+                return
+
+            for key in redis_scan_result[1]:
+                if key.startswith(f"verb_{epoch_sec}_"):
+                    all_verb_keys_to_check.add(key)
+                elif key.startswith("conn_"):
+                    all_conn_keys_to_check.add(key)
+
+            cursor = int(redis_scan_result[0])
+            if cursor == 0:
+                break
+
+        if len(all_verb_keys_to_check) > 0:
+            policy_generator.submit_violation_check(
+                list(all_verb_keys_to_check), REDIS_KEY_TYPE_VERB, epoch_time
+            )
+        if len(all_conn_keys_to_check) > 0:
+            policy_generator.submit_violation_check(
+                list(all_conn_keys_to_check), REDIS_KEY_TYPE_CONN, epoch_time
+            )
 
     while True:
         # check reload_limits
@@ -943,14 +940,14 @@ if __name__ == "__main__":
         logging.exception(f"Policy Generator initialization failed: {e}")
         raise
 
-    verb_conn_loop = threading.Thread(
+    check_thread = threading.Thread(
         target=check_loop,
         args=(
             policy_generator,
             policy_generator.sleep_time_milliseconds,
         ),
     )
-    verb_conn_loop.start()
+    check_thread.start()
 
     demand_thread = threading.Thread(
         target=demand_check_loop,
@@ -962,4 +959,4 @@ if __name__ == "__main__":
     demand_thread.start()
 
     demand_thread.join()
-    verb_conn_loop.join()
+    check_thread.join()
