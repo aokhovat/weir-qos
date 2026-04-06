@@ -557,10 +557,7 @@ class TestPolicyGenerator(unittest.TestCase):
         )
         verb_keys = ["verb_123_GET_key$ep"]
         conn_keys = ["conn_v2_user_up_instance_key$ep"]
-        policy_generator.redis_server.scan.side_effect = [
-            (0, verb_keys),
-            (0, conn_keys),
-        ]
+        policy_generator.redis_server.scan.return_value = (0, verb_keys + conn_keys)
 
         with (
             patch("policy_generator.time.time", return_value=123.0),
