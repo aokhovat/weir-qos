@@ -769,13 +769,14 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
                 assert isinstance(redis_scan_result, tuple)
                 assert len(redis_scan_result) == 2
             except Exception as e:
-                policy_generator.logger.warning(
-                    f"Redis SCAN failed with exception: {e}"
+                scan_result_suffix = (
+                    f"; redis_result={redis_scan_result}"
+                    if redis_scan_result is not None
+                    else ""
                 )
-                if redis_scan_result is not None:
-                    policy_generator.logger.warning(
-                        f"Redis result for epoch {epoch_sec}: {redis_scan_result}"
-                    )
+                policy_generator.logger.warning(
+                    f"Redis SCAN failed for epoch {epoch_sec} with exception: {e}{scan_result_suffix}"
+                )
                 # We need to find the cause of the underlying problem if this happens.
                 # We break here since the cursor in redis_scan_result might
                 # have been messed up here.
@@ -789,7 +790,7 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
                 return
 
             for key in redis_scan_result[1]:
-                if key.startswith(f"verb_{epoch_sec}_"):
+                if key.startswith(f"verb_{int(started_epoch_time)}_"):
                     all_verb_keys_to_check.add(key)
                 elif key.startswith("conn_"):
                     all_conn_keys_to_check.add(key)
