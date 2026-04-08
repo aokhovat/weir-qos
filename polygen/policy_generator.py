@@ -799,12 +799,11 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
             if cursor == 0:
                 break
 
-        if len(all_verb_keys_to_check) > 0:
-            policy_generator.submit_violation_check(
+        policy_generator.submit_violation_check(
                 list(all_verb_keys_to_check), REDIS_KEY_TYPE_VERB, epoch_time
             )
-        if len(all_conn_keys_to_check) > 0:
-            policy_generator.submit_violation_check(
+
+        policy_generator.submit_violation_check(
                 list(all_conn_keys_to_check), REDIS_KEY_TYPE_CONN, epoch_time
             )
 
