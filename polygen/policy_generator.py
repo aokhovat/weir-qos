@@ -800,12 +800,12 @@ def check_loop(policy_generator: PolicyGenerator, sleep_time_milliseconds: int) 
                 break
 
         policy_generator.submit_violation_check(
-                list(all_verb_keys_to_check), REDIS_KEY_TYPE_VERB, epoch_time
-            )
+            list(all_verb_keys_to_check), REDIS_KEY_TYPE_VERB, epoch_time
+        )
 
         policy_generator.submit_violation_check(
-                list(all_conn_keys_to_check), REDIS_KEY_TYPE_CONN, epoch_time
-            )
+            list(all_conn_keys_to_check), REDIS_KEY_TYPE_CONN, epoch_time
+        )
 
     while True:
         # check reload_limits
