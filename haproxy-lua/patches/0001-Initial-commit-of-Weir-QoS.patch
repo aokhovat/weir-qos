@@ -57,7 +57,6 @@ index 9699936e8..875f6113d 100644
 +	return 1;
 +}
 +
-+
  /* This function can fail with an abort() due to a Lua critical error.
   * We are in the initialisation process of HAProxy, this abort() is
   * tolerated.

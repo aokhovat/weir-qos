@@ -52,7 +52,6 @@ index 875f6113d..a9263daed 100644
 +{
 +
 +	const char* put_get = MAY_LJMP(luaL_checkstring(L, 1));
-+
 +	if (strcmp(put_get, "upload") == 0){
 +		print_out_key_speed_table(RL_UPLOAD);
 +		lua_pushboolean(L, 1);
@@ -65,7 +64,6 @@ index 875f6113d..a9263daed 100644
 +	}
 +
 +	lua_pushboolean(L, 0);
-+
 +	return 1;
 +}
 +
@@ -132,7 +130,7 @@ index 875f6113d..a9263daed 100644
 +    }
 +    return 0;
 +}
- 
++
  /* This function can fail with an abort() due to a Lua critical error.
   * We are in the initialisation process of HAProxy, this abort() is
 @@ -14191,6 +14287,9 @@ lua_State *hlua_init_state(int thread_num)
