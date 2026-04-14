@@ -35,14 +35,30 @@ else
     HAPROXY_ALT_BASE_REF="v$WEIR_HAPROXY_BASE_COMMIT"
 fi
 
-if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
-    HAPROXY_RESOLVED_BASE_REF="$HAPROXY_BASE_REF"
-elif git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_ALT_BASE_REF^{commit}" >/dev/null; then
-    HAPROXY_RESOLVED_BASE_REF="$HAPROXY_ALT_BASE_REF"
-else
-    echo "Unable to resolve HAProxy base ref. Tried '$HAPROXY_BASE_REF' and '$HAPROXY_ALT_BASE_REF'."
-    echo "If this is a new release, update WEIR_HAPROXY_BASE_COMMIT to a ref that exists in the upstream repo."
-    exit 1
+resolve_base_ref() {
+    if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
+        echo "$HAPROXY_BASE_REF"
+        return 0
+    fi
+    if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_ALT_BASE_REF^{commit}" >/dev/null; then
+        echo "$HAPROXY_ALT_BASE_REF"
+        return 0
+    fi
+    return 1
+}
+
+if ! HAPROXY_RESOLVED_BASE_REF=$(resolve_base_ref); then
+    SERIES_REPO_URL="https://git.haproxy.org/git/haproxy-$WEIR_HAPROXY_SERIES.git"
+    ORIGIN_URL=$(git -C "$HAPROXY_SOURCE_DIR" config --get remote.origin.url || true)
+    echo "HAProxy base ref not found in '$ORIGIN_URL'. Fetching tags from '$SERIES_REPO_URL' and retrying..."
+    git -C "$HAPROXY_SOURCE_DIR" fetch --tags "$SERIES_REPO_URL"
+
+    if ! HAPROXY_RESOLVED_BASE_REF=$(resolve_base_ref); then
+        echo "Unable to resolve HAProxy base ref. Tried '$HAPROXY_BASE_REF' and '$HAPROXY_ALT_BASE_REF'."
+        echo "Checked cloned remote '$ORIGIN_URL' and fetched tags from '$SERIES_REPO_URL'."
+        echo "If this is a new release, update WEIR_HAPROXY_BASE_COMMIT to a ref that exists in upstream."
+        exit 1
+    fi
 fi
 
 git -C "$HAPROXY_SOURCE_DIR" checkout "$HAPROXY_RESOLVED_BASE_REF"
