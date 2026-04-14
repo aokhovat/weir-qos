@@ -28,8 +28,25 @@ fi
 
 # Store the commit on which our local changes are based, so that we know which commits need to be
 # turned into patches when we later run the `deactivate` script.
-git -C  "$HAPROXY_SOURCE_DIR" checkout $WEIR_HAPROXY_BASE_COMMIT
-git -C  "$HAPROXY_SOURCE_DIR" show-ref -s $WEIR_HAPROXY_BASE_COMMIT > "$SCRIPT_DIR"/.haproxy-activated-commit
+HAPROXY_BASE_REF="$WEIR_HAPROXY_BASE_COMMIT"
+if [[ "$WEIR_HAPROXY_BASE_COMMIT" == v* ]]; then
+    HAPROXY_ALT_BASE_REF="${WEIR_HAPROXY_BASE_COMMIT#v}"
+else
+    HAPROXY_ALT_BASE_REF="v$WEIR_HAPROXY_BASE_COMMIT"
+fi
+
+if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
+    HAPROXY_RESOLVED_BASE_REF="$HAPROXY_BASE_REF"
+elif git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_ALT_BASE_REF^{commit}" >/dev/null; then
+    HAPROXY_RESOLVED_BASE_REF="$HAPROXY_ALT_BASE_REF"
+else
+    echo "Unable to resolve HAProxy base ref. Tried '$HAPROXY_BASE_REF' and '$HAPROXY_ALT_BASE_REF'."
+    echo "If this is a new release, update WEIR_HAPROXY_BASE_COMMIT to a ref that exists in the upstream repo."
+    exit 1
+fi
+
+git -C "$HAPROXY_SOURCE_DIR" checkout "$HAPROXY_RESOLVED_BASE_REF"
+git -C "$HAPROXY_SOURCE_DIR" rev-parse "$HAPROXY_RESOLVED_BASE_REF^{commit}" > "$SCRIPT_DIR"/.haproxy-activated-commit
 
 # Enable ** for directory expansion in globs, and allow zero matches to result in an empty list
 shopt -s globstar nullglob
