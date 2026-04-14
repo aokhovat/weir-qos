@@ -24,7 +24,7 @@ diff --git a/src/hlua.c b/src/hlua.c
 index 9699936e8..875f6113d 100644
 --- a/src/hlua.c
 +++ b/src/hlua.c
-@@ -14038,6 +14038,36 @@ static void *hlua_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
+@@ -14038,6 +14038,35 @@ static void *hlua_alloc(void *ud, void *ptr, size_t osize, size_t nsize)
  	return ptr;
  }
  
@@ -60,7 +60,7 @@ index 9699936e8..875f6113d 100644
  /* This function can fail with an abort() due to a Lua critical error.
   * We are in the initialisation process of HAProxy, this abort() is
   * tolerated.
-@@ -14160,6 +14190,7 @@ lua_State *hlua_init_state(int thread_num)
+@@ -14160,6 +14189,7 @@ lua_State *hlua_init_state(int thread_num)
  	hlua_class_function(L, "Alert", hlua_log_alert);
  	hlua_class_function(L, "done", hlua_done);
  	hlua_class_function(L, "disable_legacy_mailers", hlua_disable_legacy_mailers);
