@@ -29,40 +29,22 @@ fi
 # Store the commit on which our local changes are based, so that we know which commits need to be
 # turned into patches when we later run the `deactivate` script.
 HAPROXY_BASE_REF="$WEIR_HAPROXY_BASE_COMMIT"
-if [[ "$WEIR_HAPROXY_BASE_COMMIT" == v* ]]; then
-    HAPROXY_ALT_BASE_REF="${WEIR_HAPROXY_BASE_COMMIT#v}"
-else
-    HAPROXY_ALT_BASE_REF="v$WEIR_HAPROXY_BASE_COMMIT"
-fi
 
-resolve_base_ref() {
-    if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
-        echo "$HAPROXY_BASE_REF"
-        return 0
-    fi
-    if git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_ALT_BASE_REF^{commit}" >/dev/null; then
-        echo "$HAPROXY_ALT_BASE_REF"
-        return 0
-    fi
-    return 1
-}
-
-if ! HAPROXY_RESOLVED_BASE_REF=$(resolve_base_ref); then
+if ! git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
     SERIES_REPO_URL="https://git.haproxy.org/git/haproxy-$WEIR_HAPROXY_SERIES.git"
     ORIGIN_URL=$(git -C "$HAPROXY_SOURCE_DIR" config --get remote.origin.url || true)
-    echo "HAProxy base ref not found in '$ORIGIN_URL'. Fetching tags from '$SERIES_REPO_URL' and retrying..."
+    echo "HAProxy base ref '$HAPROXY_BASE_REF' not found in '$ORIGIN_URL'. Fetching tags from '$SERIES_REPO_URL'..."
     git -C "$HAPROXY_SOURCE_DIR" fetch --tags "$SERIES_REPO_URL"
 
-    if ! HAPROXY_RESOLVED_BASE_REF=$(resolve_base_ref); then
-        echo "Unable to resolve HAProxy base ref. Tried '$HAPROXY_BASE_REF' and '$HAPROXY_ALT_BASE_REF'."
-        echo "Checked cloned remote '$ORIGIN_URL' and fetched tags from '$SERIES_REPO_URL'."
+    if ! git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
+        echo "Unable to resolve HAProxy base ref '$HAPROXY_BASE_REF'."
         echo "If this is a new release, update WEIR_HAPROXY_BASE_COMMIT to a ref that exists in upstream."
         exit 1
     fi
 fi
 
-git -C "$HAPROXY_SOURCE_DIR" checkout "$HAPROXY_RESOLVED_BASE_REF"
-git -C "$HAPROXY_SOURCE_DIR" rev-parse "$HAPROXY_RESOLVED_BASE_REF^{commit}" > "$SCRIPT_DIR"/.haproxy-activated-commit
+git -C "$HAPROXY_SOURCE_DIR" checkout "$HAPROXY_BASE_REF"
+git -C "$HAPROXY_SOURCE_DIR" rev-parse "$HAPROXY_BASE_REF^{commit}" > "$SCRIPT_DIR"/.haproxy-activated-commit
 
 # Enable ** for directory expansion in globs, and allow zero matches to result in an empty list
 shopt -s globstar nullglob
