@@ -30,12 +30,15 @@ fi
 # turned into patches when we later run the `deactivate` script.
 HAPROXY_BASE_REF="$WEIR_HAPROXY_BASE_COMMIT"
 
+# Ensure the requested base ref exists locally before checkout.
+# If missing, fetch tags from the upstream series repo and retry once.
 if ! git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
     SERIES_REPO_URL="https://git.haproxy.org/git/haproxy-$WEIR_HAPROXY_SERIES.git"
     ORIGIN_URL=$(git -C "$HAPROXY_SOURCE_DIR" config --get remote.origin.url || true)
     echo "HAProxy base ref '$HAPROXY_BASE_REF' not found in '$ORIGIN_URL'. Fetching tags from '$SERIES_REPO_URL'..."
     git -C "$HAPROXY_SOURCE_DIR" fetch --tags "$SERIES_REPO_URL"
 
+    # Fail fast if the ref still does not resolve after tag refresh.
     if ! git -C "$HAPROXY_SOURCE_DIR" rev-parse --verify --quiet "$HAPROXY_BASE_REF^{commit}" >/dev/null; then
         echo "Unable to resolve HAProxy base ref '$HAPROXY_BASE_REF'."
         echo "If this is a new release, update WEIR_HAPROXY_BASE_COMMIT to a ref that exists in upstream."
